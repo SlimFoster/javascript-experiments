@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+	<meta charset="UTF-8">
+	<title></title>
+</head>
+<body>
+<script language="javascript" src="lib/mjs.js"></script>
+<script language="javascript">
+
+	var requestAnimFrame =
+		window.requestAnimationFrame       ||
+		window.webkitRequestAnimationFrame ||
+		window.mozRequestAnimationFrame    ||
+		function (callback) {
+			window.setTimeout(callback, 1000 / 60);
+		};
+
+	function mulV(matrix, vector) {
+		return [
+				vector[0] * matrix[0],
+				vector[1] * matrix[5],
+				vector[2] * matrix[10]
+		];
+	}
+
+	var canvas = document.body.appendChild(document.createElement('canvas'))
+		,   c = canvas.getContext('2d')
+		;
+
+	canvas.width = 320;
+	canvas.height = 240;
+	canvas.style.backgroundColor = 'black';
+
+	function drawTriangleLine(buffer, color, offset, x1, x2) {
+		offset += x1 << 2;
+		while (x1++ <= x2) {
+			buffer.data[offset + 0] = color[0];
+			buffer.data[offset + 1] = color[1];
+			buffer.data[offset + 2] = color[2];
+			buffer.data[offset + 3] = 255;
+			offset += 4;
+		}
+	}
+
+	function drawTopTriangle(buffer, color, x1, y1, x2, y2, x3, y3) {
+		var dxr, dxl;
+		var xs, xe;
+		var height;
+		var tx, ty, right, left;
+
+		if (x2 < x1) {
+			tx = x2;
+			x2 = x1;
+			x1 = tx;
+		}
+
+		height = y3 - y1;
+		dxl = (x3 - x1) / height;
+		dxr = (x3 - x2) / height;
+
+		xs = x1;
+		xe = x2 + 0.5;
+
+		if (y1 < 0) {
+			xs += dxl * -y1;
+			xe += dxr * -y1;
+			y1 = 0;
+		}
+		if (y3 >= buffer.height)
+			y3 = buffer.height - 1;
+
+		var dest = y1 * buffer.width << 2;
+
+		if (x1 >= 0 && x1 < buffer.width &&
+			x2 >= 0 && x2 < buffer.width &&
+			x3 >= 0 && x3 < buffer.width) {
+
+			for (ty = y1; ty <= y3; ty++, dest += buffer.width << 2) {
+				drawTriangleLine(buffer, color, dest, ~~xs, ~~xe);
+				xs += dxl;
+				xe += dxr;
+			}
+
+		} else {
+			for (ty = y1; ty < y3; ty++, dest += buffer.width << 2) {
+				left = ~~xs;
+				right = ~~xe;
+
+				xs += dxl;
+				xe += dxr;
+
+				if (left < 0) {
+					left = 0;
+					if (right < 0)
+						continue;
+				}
+				if (right >= buffer.width) {
+					right = buffer.width - 1;
+					if (left >= buffer.width)
+						continue;
+				}
+				drawTriangleLine(buffer, color, dest, left, right);
+			}
+		}
+	}
+
+	function drawBottomTriangle(buffer, color, x1, y1, x2, y2, x3, y3) {
+		var dxr, dxl;
+		var xs, xe;
+		var height;
+		var tx, ty, right, left;
+
+		if (x3 < x2) {
+			tx = x3;
+			x3 = x2;
+			x2 = tx;
+		}
+
+		height = y3 - y1;
+		dxl = (x2 - x1) / height;
+		dxr = (x3 - x1) / height;
+
+		xs = x1;
+		xe = x1 + 0.5;
+
+		if (y1 < 0) {
+			xs += dxl * -y1;
+			xe += dxr * -y1;
+			y1 = 0;
+		}
+
+		if (y3 >= buffer.height)
+			y3 = buffer.height - 1;
+
+		var dest = y1 * buffer.width << 2;
+
+		if (x1 >= 0 && x1 < buffer.width &&
+			x2 >= 0 && x2 < buffer.width &&
+			x3 >= 0 && x3 < buffer.width) {
+
+			for (ty = y1; ty <= y3; ty++, dest += buffer.width << 2) {
+				drawTriangleLine(buffer, color, dest, ~~xs, ~~xe);
+				xs += dxl;
+				xe += dxr;
+			}
+
+		} else {
+			for (ty = y1; ty < y3; ty++, dest += buffer.width << 2) {
+				left = ~~xs;
+				right = ~~xe;
+
+				xs += dxl;
+				xe += dxr;
+
+				if (left < 0) {
+					left = 0;
+					if (right < 0)
+						continue;
+				}
+				if (right >= buffer.width) {
+					right = buffer.width - 1;
+					if (left >= buffer.width)
+						continue;
+				}
+				drawTriangleLine(buffer, color, dest, left, right);
+			}
+		}
+	}
+
+	// TODO: Improve edge of triangle (http://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm)
+	function drawTriangle(buffer, color, x1, y1, x2, y2, x3, y3) {
+		var tx, ty, nx;
+
+		if ((x1 == x2 && x2 == x3) || (y1 == y2 && y2 == y3))
+			return;
+
+		if (y2 < y1) {
+			tx = x2;
+			ty = y2;
+			x2 = x1;
+			y2 = y1;
+			x1 = tx;
+			y1 = ty;
+		}
+
+		if (y3 < y1) {
+			tx = x3;
+			ty = y3;
+			x3 = x1;
+			y3 = y1;
+			x1 = tx;
+			y1 = ty;
+		}
+
+		if (y3 < y2) {
+			tx = x3;
+			ty = y3;
+			x3 = x2;
+			y3 = y2;
+			x2 = tx;
+			y2 = ty;
+		}
+
+		if (y1 == y2)
+			drawTopTriangle(buffer, color, x1, y1, x2, y2, x3, y3);
+		else if (y2 == y3)
+			drawBottomTriangle(buffer, color, x1, y1, x2, y2, x3, y3);
+		else {
+			nx = x1 + ((y2 - y1)*(x3 - x1)/(y3 - y1));
+			drawBottomTriangle(buffer, color, x1, y1, nx, y2, x2, y2);
+			drawTopTriangle(buffer, color, x2, y2, nx, y2, x3, y3);
+		}
+	}
+
+	var Cube = function () {
+		this.loc = [0, 0, 2];
+		this.rot = [0, 0, 0];
+		this.scale = 1;
+	};
+	Cube.prototype.points = [V3.$(-1,-1,-1),V3.$(1,-1,-1),V3.$(1,1,-1),V3.$(-1,1,-1),V3.$(-1,-1,1),V3.$(1,-1,1),V3.$(1,1,1),V3.$(-1,1,1)];
+	Cube.prototype.faces = [
+		[0, 1, 2, [255, 0, 0]],
+		[0, 2, 3, [255, 0, 0]],
+		[5, 4, 7, [0, 0, 255]],
+		[5, 7, 6, [0, 0, 255]],
+		[6, 2, 1, [0, 255, 0]],
+		[6, 1, 5, [0, 255, 0]],
+		[3, 7, 4, [255, 255, 0]],
+		[3, 4, 0, [255, 255, 0]],
+		[7, 3, 2, [255, 128, 0]],
+		[7, 2, 6, [255, 128, 0]],
+		[5, 1, 0, [255, 255, 255]],
+		[5, 0, 4, [255, 255, 255]]
+	];
+	Cube.prototype.rotate = function (x, y, z) {
+
+		this.rot[0] = x*Math.PI/180 || this.rot[0];
+		this.rot[1] = y*Math.PI/180 || this.rot[1];
+		this.rot[2] = z*Math.PI/180 || this.rot[2];
+	};
+	Cube.prototype.scale = function (scale) {
+		this.scale = scale;
+	};
+	Cube.prototype.translate = function (x, y, z) {
+		this.loc[0] = x || this.loc[0];
+		this.loc[1] = y || this.loc[1];
+		this.loc[2] = z || this.loc[2];
+	};
+	Cube.prototype.render = function () {
+		var tmp, v, m;
+
+		c.clearRect(0, 0, canvas.width, canvas.height);
+		c.lineJoin = 'round';
+		c.lineWidth = 2;
+
+		var transformM = M4x4.makeScale1(this.scale);
+
+		M4x4.translate(this.loc, transformM, transformM);
+
+		M4x4.rotate(this.rot[0], [1, 0, 0], transformM, transformM);
+		M4x4.rotate(this.rot[1], [0, 1, 0], transformM, transformM);
+		M4x4.rotate(this.rot[2], [0, 0, 1], transformM, transformM);
+
+		M4x4.mul(M4x4.makeTranslate(this.loc), transformM, transformM);
+
+		var projected = this.points.map(function (p) {
+			return M4x4.transformPoint(transformM, p);
+		});
+
+		// poor man's z depth sorting
+		this.faces.forEach(function(face) {
+			var avgZ = projected[face[0]][2] + projected[face[1]][2] + projected[face[2]][2] / 3;
+			face.push(avgZ);
+		});
+
+		this.faces.sort(function (a, b) { return b[4] - a[4]; });
+
+		projected.forEach(function (p) {
+			var depth = canvas.width / 1.5;
+			p[0] = p[0] * depth / p[2];
+			p[1] = p[1] * depth / p[2];
+
+			p[0] += canvas.width / 2;
+			p[1] += canvas.height / 2;
+		});
+
+		// draw stuff
+
+		var buffer = c.getImageData(0, 0, canvas.width, canvas.height);
+
+		this.faces.forEach(function (face) {
+
+			var v1 = projected[face[0]];
+			var v2 =  projected[face[1]];
+			var v3 =  projected[face[2]];
+
+			drawTriangle(buffer, face[3], ~~v1[0], ~~v1[1], ~~v2[0], ~~v2[1], ~~v3[0], ~~v3[1]);
+
+			face.pop();
+
+		}, this);
+
+		c.putImageData(buffer, 0, 0);
+
+	};
+
+	var cube = new Cube();
+
+	var startTime;
+	var ticks;
+
+	function loop() {
+		ticks = new Date().valueOf() - startTime;
+		cube.rotate(ticks / 16, -ticks / 16, 0);
+		cube.render();
+		requestAnimFrame(loop);
+	}
+
+	startTime = new Date().valueOf();
+	requestAnimFrame(loop);
+
+</script>
+</body>
+</html>

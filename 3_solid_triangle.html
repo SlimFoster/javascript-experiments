@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title></title>
+</head>
+<body>
+<script language="javascript">
+    var canvas = document.body.appendChild(document.createElement('canvas'))
+            , ctx = canvas.getContext('2d')
+            , reqFrame = window.requestAnimationFrame
+            , viewDist = 80
+            ;
+
+    canvas.width = 320;
+    canvas.height = 240;
+    canvas.style.backgroundColor = 'black';
+
+    function drawLine(buffer, color, offset, x1, x2) {
+        offset += x1 << 2;
+        while (x1++ <= x2) {
+            buffer.data[offset + 0] = color[0];
+            buffer.data[offset + 1] = color[1];
+            buffer.data[offset + 2] = color[2];
+            buffer.data[offset + 3] = 255;
+            offset += 4;
+        }
+    }
+
+    function drawTopTriangle(buffer, color, x1, y1, x2, y2, x3, y3) {
+        var dxr, dxl;
+        var xs, xe;
+        var height;
+        var tx, ty, right, left;
+
+        if (x2 < x1) {
+            tx = x2;
+            x2 = x1;
+            x1 = tx;
+        }
+
+        height = y3 - y1;
+        dxl = (x3 - x1) / height;
+        dxr = (x3 - x2) / height;
+
+        xs = x1;
+        xe = x2 + 0.5;
+
+        if (y1 < 0) {
+            xs += dxl * -y1;
+            xe += dxr * -y1;
+            y1 = 0;
+        }
+        if (y3 >= buffer.height)
+            y3 = buffer.height - 1;
+
+        var dest = y1 * buffer.width << 2;
+
+        if (x1 >= 0 && x1 < buffer.width &&
+            x2 >= 0 && x2 < buffer.width &&
+            x3 >= 0 && x3 < buffer.width) {
+
+            for (ty = y1; ty <= y3; ty++, dest += buffer.width << 2) {
+                drawLine(buffer, color, dest, ~~xs, ~~xe);
+                xs += dxl;
+                xe += dxr;
+            }
+
+        } else {
+            for (ty = y1; ty < y3; ty++, dest += buffer.width << 2) {
+                left = ~~xs;
+                right = ~~xe;
+
+                xs += dxl;
+                xe += dxr;
+
+                if (left < 0) {
+                    left = 0;
+                    if (right < 0)
+                        continue;
+                }
+                if (right >= buffer.width) {
+                    right = buffer.width - 1;
+                    if (left >= buffer.width)
+                        continue;
+                }
+                drawLine(buffer, color, dest, left, right);
+            }
+        }
+    }
+
+    function drawBottomTriangle(buffer, color, x1, y1, x2, y2, x3, y3) {
+        var dxr, dxl;
+        var xs, xe;
+        var height;
+        var tx, ty, right, left;
+
+        if (x3 < x2) {
+            tx = x3;
+            x3 = x2;
+            x2 = tx;
+        }
+
+        height = y3 - y1;
+        dxl = (x2 - x1) / height;
+        dxr = (x3 - x1) / height;
+
+        xs = x1;
+        xe = x1 + 0.5;
+
+        if (y1 < 0) {
+            xs += dxl * -y1;
+            xe += dxr * -y1;
+            y1 = 0;
+        }
+
+        if (y3 >= buffer.height)
+            y3 = buffer.height - 1;
+
+        var dest = y1 * buffer.width << 2;
+
+        if (x1 >= 0 && x1 < buffer.width &&
+            x2 >= 0 && x2 < buffer.width &&
+            x3 >= 0 && x3 < buffer.width) {
+
+            for (ty = y1; ty <= y3; ty++, dest += buffer.width << 2) {
+                drawLine(buffer, color, dest, ~~xs, ~~xe);
+                xs += dxl;
+                xe += dxr;
+            }
+
+        } else {
+            for (ty = y1; ty < y3; ty++, dest += buffer.width << 2) {
+                left = ~~xs;
+                right = ~~xe;
+
+                xs += dxl;
+                xe += dxr;
+
+                if (left < 0) {
+                    left = 0;
+                    if (right < 0)
+                        continue;
+                }
+                if (right >= buffer.width) {
+                    right = buffer.width - 1;
+                    if (left >= buffer.width)
+                        continue;
+                }
+                drawLine(buffer, color, dest, left, right);
+            }
+        }
+    }
+
+    // TODO: Improve edge of triangle (http://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm)
+    function drawTriangle(buffer, color, x1, y1, x2, y2, x3, y3) {
+       var tx, ty, nx;
+
+        if ((x1 == x2 && x2 == x3) || (y1 == y2 && y2 == y3))
+            return;
+
+        if (y2 < y1) {
+            tx = x2;
+            ty = y2;
+            x2 = x1;
+            y2 = y1;
+            x1 = tx;
+            y1 = ty;
+        }
+
+        if (y3 < y1) {
+            tx = x3;
+            ty = y3;
+            x3 = x1;
+            y3 = y1;
+            x1 = tx;
+            y1 = ty;
+        }
+
+        if (y3 < y2) {
+            tx = x3;
+            ty = y3;
+            x3 = x2;
+            y3 = y2;
+            x2 = tx;
+            y2 = ty;
+        }
+
+        if (y1 == y2)
+            drawTopTriangle(buffer, color, x1, y1, x2, y2, x3, y3);
+        else if (y2 == y3)
+			drawBottomTriangle(buffer, color, x1, y1, x2, y2, x3, y3);
+        else {
+            nx = x1 + ((y2 - y1)*(x3 - x1)/(y3 - y1));
+            drawBottomTriangle(buffer, color, x1, y1, nx, y2, x2, y2);
+            drawTopTriangle(buffer, color, x2, y2, nx, y2, x3, y3);
+        }
+    }
+
+    function correctMap(ctx, pts) {
+
+        var buffer = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+        var tris = [[0, 1, 2], [2, 3, 0]]; // Split in two triangles
+        for (var t=0; t<1; t++) {
+            var pp = tris[t];
+            var x0 = pts[pp[0]].x, x1 = pts[pp[1]].x, x2 = pts[pp[2]].x;
+            var y0 = pts[pp[0]].y, y1 = pts[pp[1]].y, y2 = pts[pp[2]].y;
+
+            drawTriangle(buffer, [255, 255, 255], x0, y0, x1, y1, x2, y2);
+        }
+
+        ctx.putImageData(buffer, 0, 0);
+    }
+
+    var pts = [
+        {x:0,   y:20,  z: 10, u: 0, v: 0},
+        {x:100, y:0,   z: 0 , u: 1, v: 0},
+        {x:100, y:100, z: 0 , u: 1, v: 1},
+        {x:0,   y:80,  z: 10, u: 0, v: 1}
+    ];
+
+    correctMap(ctx, pts);
+
+
+</script>
+</body>
+</html>

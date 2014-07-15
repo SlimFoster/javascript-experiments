@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title></title>
+</head>
+<body>
+<script language="javascript" src="lib/mjs.js"></script>
+<script language="javascript">
+
+    var requestAnimFrame =
+            window.requestAnimationFrame       ||
+            window.webkitRequestAnimationFrame ||
+            window.mozRequestAnimationFrame    ||
+            function (callback) {
+                window.setTimeout(callback, 1000 / 60);
+            };
+
+    function mulV(matrix, vector) {
+        return [
+            vector[0] * matrix[0],
+            vector[1] * matrix[5],
+            vector[2] * matrix[10]
+        ];
+    }
+
+    var canvas = document.body.appendChild(document.createElement('canvas'))
+    ,   c = canvas.getContext('2d')
+    ;
+
+    canvas.width = 320;
+    canvas.height = 240;
+    canvas.style.backgroundColor = 'black';
+
+    var Cube = function () {
+        this.loc = [0, 0, 2];
+        this.rot = [0, 0, 0];
+        this.scale = 1;
+    };
+    Cube.prototype.points = [V3.$(-1,-1,-1),V3.$(1,-1,-1),V3.$(1,1,-1),V3.$(-1,1,-1),V3.$(-1,-1,1),V3.$(1,-1,1),V3.$(1,1,1),V3.$(-1,1,1)];
+    Cube.prototype.faces = [[0,1,2,3],[5,4,7,6],[6,2,1,5],[3,7,4,0],[7,3,2,6],[5,1,0,4]];
+    Cube.prototype.rotate = function (x, y, z) {
+
+        this.rot[0] = x*Math.PI/180 || this.rot[0];
+        this.rot[1] = y*Math.PI/180 || this.rot[1];
+        this.rot[2] = z*Math.PI/180 || this.rot[2];
+    };
+    Cube.prototype.scale = function (scale) {
+        this.scale = scale;
+    };
+    Cube.prototype.translate = function (x, y, z) {
+        this.loc[0] = x || this.loc[0];
+        this.loc[1] = y || this.loc[1];
+        this.loc[2] = z || this.loc[2];
+    };
+    Cube.prototype.render = function () {
+        var tmp, v, m;
+
+        c.save();
+        c.clearRect(0, 0, canvas.width, canvas.height);
+        c.strokeStyle = 'white';
+        c.lineJoin = 'round';
+        c.lineWidth = 2;
+
+        var transformM = M4x4.makeScale1(this.scale);
+
+        M4x4.translate(this.loc, transformM, transformM);
+
+        M4x4.rotate(this.rot[0], [1, 0, 0], transformM, transformM);
+        M4x4.rotate(this.rot[1], [0, 1, 0], transformM, transformM);
+        M4x4.rotate(this.rot[2], [0, 0, 1], transformM, transformM);
+
+        M4x4.mul(M4x4.makeTranslate(this.loc), transformM, transformM);
+
+        var transformed = [];
+
+        this.points.forEach(function (point, i) {
+            var p = M4x4.transformPoint(transformM, point);
+
+            var depth = canvas.width / 1.5;
+            var x = p[0] * depth / p[2];
+            var y = p[1] * depth / p[2];
+
+            x += canvas.width / 2;
+            y += canvas.height / 2;
+
+            transformed.push([x, y]);
+
+        }, this);
+
+        this.faces.forEach(function (face, i) {
+            c.beginPath();
+            face.forEach(function (v, i) {
+                (i === 0 ? c.moveTo : c.lineTo).apply(c, transformed[v]);
+            });
+            c.closePath();
+            c.stroke();
+        }, this);
+
+        c.restore();
+    };
+
+    var cube = new Cube();
+
+    var startTime;
+    var ticks;
+
+    function loop() {
+        ticks = new Date().valueOf() - startTime;
+        cube.rotate(ticks / 16, -ticks / 16, 0);
+        cube.render();
+        requestAnimFrame(loop);
+    }
+
+    startTime = new Date().valueOf();
+    requestAnimFrame(loop);
+
+</script>
+</body>
+</html>

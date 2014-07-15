@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+	<meta charset="UTF-8">
+	<title></title>
+</head>
+<body>
+<script language="javascript" src="lib/mjs.js"></script>
+<script language="javascript" src="lib/stats.min.js"></script>
+<script language="javascript">
+
+	var stats = new Stats();
+	//stats.setMode(1); // 0: fps, 1: ms
+
+	// Align top-left
+	stats.domElement.style.position = 'absolute';
+	stats.domElement.style.left = '10px';
+	stats.domElement.style.top = '10px';
+
+	document.body.appendChild( stats.domElement );
+
+	var requestAnimFrame =
+		window.requestAnimationFrame       ||
+		window.webkitRequestAnimationFrame ||
+		window.mozRequestAnimationFrame    ||
+		function (callback) {
+			window.setTimeout(callback, 1000 / 60);
+		};
+
+	function mulV(matrix, vector) {
+		return [
+				vector[0] * matrix[0],
+				vector[1] * matrix[5],
+				vector[2] * matrix[10]
+		];
+	}
+
+	var canvas = document.body.appendChild(document.createElement('canvas'));
+	var c = canvas.getContext('2d');
+	var texture;
+
+	canvas.width = 320;
+	canvas.height = 240;
+	canvas.style.backgroundColor = 'black';
+
+	function getImageData(url, callback) {
+		var img = new Image();
+		img.onload = function() {
+
+			var canvas = document.createElement('canvas');
+			canvas.width = img.width;
+			canvas.height = img.height;
+			var ctx = canvas.getContext('2d');
+			ctx.drawImage(img, 0, 0);
+			callback({
+				canvas: canvas,
+				data: ctx.getImageData(0, 0, img.width, img.height)
+			});
+		};
+		img.src = url;
+	}
+
+	// http://archive.gamedev.net/archive/reference/articles/article331.html
+	function drawTriangleLine(buffer, texture, offset, xs, xe, zs, ze, us, ue, vs, ve) {
+
+		us /= zs;
+		ue /= ze;
+		vs /= zs;
+		ve /= ze;
+		zs = 1 / zs;
+		ze = 1 / ze;
+
+		var r = 1 / (xe - xs);
+		var dz = (ze - zs) * r;
+		var du = (ue - us) * r;
+		var dv = (ve - vs) * r;
+
+		while (xs++ < 0) {
+			zs += dz;
+			us += du;
+			vs += dv;
+		}
+
+		if (xe >= buffer.width) {
+			xe = buffer.width - 1;
+		}
+
+		offset += xs << 2;
+
+		var u, v, textOff;
+		while (xs <= xe) {
+			u = ~~((texture.width - 1) * us / zs);
+			v = ~~((texture.height - 1) * vs / zs);
+			textOff = (u + v * texture.width) << 2;
+			buffer.data[offset + 0] = texture.data[textOff + 0];
+			buffer.data[offset + 1] = texture.data[textOff + 1];
+			buffer.data[offset + 2] = texture.data[textOff + 2];
+			buffer.data[offset + 3] = 255;
+			offset += 4;
+			xs++;
+			zs += dz;
+			us += du;
+			vs += dv;
+		}
+	}
+
+	function moveStartAndEnd(se, deltas) {
+		se.xs += deltas.xs;
+		se.xe += deltas.xe;
+		se.zs += deltas.zs;
+		se.ze += deltas.ze;
+		se.us += deltas.us;
+		se.ue += deltas.ue;
+		se.vs += deltas.vs;
+		se.ve += deltas.ve;
+	}
+
+	function drawTopTriangle(buffer, texture, v1, v2, v3) {
+		var tv, ty;
+
+		if (v2.x < v1.x) {
+			tv = v2;
+			v2 = v1;
+			v1 = tv;
+		}
+
+		var r = 1 / (v3.y - v1.y);
+		var d = {
+			xs: (v3.x - v1.x) * r,
+			xe: (v3.x - v2.x) * r,
+			zs: (v3.z - v1.z) * r,
+			ze: (v3.z - v2.z) * r,
+			us: (v3.u - v1.u) * r,
+			ue: (v3.u - v2.u) * r,
+			vs: (v3.v - v1.v) * r,
+			ve: (v3.v - v2.v) * r
+		};
+
+		var se = {
+			xs: v1.x,
+			xe: v2.x + 0.5,
+			zs: v1.z,
+			ze: v2.z,
+			us: v1.u,
+			ue: v2.u,
+			vs: v1.v,
+			ve: v2.v
+		};
+
+		if (v1.y < 0) {
+			se.xs += d.xs * -v1.y;
+			se.xe += d.xe * -v1.y;
+			se.zs += d.zs * -v1.y;
+			se.ze += d.ze * -v1.y;
+			se.us += d.us * -v1.y;
+			se.ue += d.ue * -v1.y;
+			se.vs += d.vs * -v1.y;
+			se.ve += d.ve * -v1.y;
+			v1.y = 0;
+		}
+		if (v3.y >= buffer.height)
+			v3.y = buffer.height - 1;
+
+		var dest = ~~v1.y * buffer.width << 2;
+
+		for (ty = v1.y; ty <= v3.y; ty++, dest += buffer.width << 2) {
+			if (se.xs >= buffer.width || se.xe < 0) {
+				moveStartAndEnd(se, d);
+				continue;
+			}
+
+			drawTriangleLine(buffer, texture, dest, ~~se.xs, ~~se.xe, se.zs, se.ze, se.us, se.ue, se.vs, se.ve);
+			moveStartAndEnd(se, d);
+		}
+	}
+
+	function drawBottomTriangle(buffer, texture, v1, v2, v3) {
+		var dxr, dxl;
+		var xs, xe;
+		var height;
+		var tv, tx, ty, right, left;
+
+		if (v3.x < v2.x) {
+			tv = v3;
+			v3 = v2;
+			v2 = tv;
+		}
+
+		var r = 1 / (v3.y - v1.y);
+		var d = {
+			xs: (v2.x - v1.x) * r,
+			xe: (v3.x - v1.x) * r,
+			zs: (v2.z - v1.z) * r,
+			ze: (v3.z - v1.z) * r,
+			us: (v2.u - v1.u) * r,
+			ue: (v3.u - v1.u) * r,
+			vs: (v2.v - v1.v) * r,
+			ve: (v3.v - v1.v) * r
+		};
+
+		var se = {
+			xs: v1.x,
+			xe: v1.x + 0.5,
+			zs: v1.z,
+			ze: v1.z,
+			us: v1.u,
+			ue: v1.u,
+			vs: v1.v,
+			ve: v1.v
+		};
+
+		if (v1.y < 0) {
+			se.xs += d.xs * -v1.y;
+			se.xe += d.xe * -v1.y;
+			se.zs += d.zs * -v1.y;
+			se.ze += d.ze * -v1.y;
+			se.us += d.us * -v1.y;
+			se.ue += d.ue * -v1.y;
+			se.vs += d.vs * -v1.y;
+			se.ve += d.ve * -v1.y;
+			v1.y = 0;
+		}
+
+		if (v3.y >= buffer.height)
+			v3.y = buffer.height - 1;
+
+		var dest = ~~v1.y * buffer.width << 2;
+
+		for (ty = v1.y; ty <= v3.y; ty++, dest += buffer.width << 2) {
+			if (se.xs >= buffer.width || se.xe < 0) {
+				moveStartAndEnd(se, d);
+				continue;
+			}
+
+			drawTriangleLine(buffer, texture, dest, ~~se.xs, ~~se.xe, se.zs, se.ze, se.us, se.ue, se.vs, se.ve);
+			moveStartAndEnd(se, d);
+		}
+	}
+
+	// TODO: Improve edge of triangle (http://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm)
+	function drawTriangle(buffer, texture, v1, v2, v3) {
+		var tv;
+
+		if ((v1.x == v2.x && v2.x == v3.x) || (v1.y == v2.y && v2.y == v3.y))
+			return;
+
+		if (v2.y < v1.y) {
+			tv = v2;
+			v2 = v1;
+			v1 = tv;
+		}
+
+		if (v3.y < v1.y) {
+			tv = v3;
+			v3 = v1;
+			v1 = tv;
+		}
+
+		if (v3.y < v2.y) {
+			tv = v3;
+			v3 = v2;
+			v2 = tv;
+		}
+
+		if (v1.y == v2.y)
+			drawTopTriangle(buffer, texture, v1, v2, v3);
+		else if (v2.y == v3.y)
+			drawBottomTriangle(buffer, texture, v1, v2, v3);
+		else {
+			var r = (v2.y - v1.y) / (v3.y - v1.y);
+			tv = { y: v2.y };
+			tv.x = v1.x + (v3.x - v1.x) * r;
+			tv.z = v1.z + (v3.z - v1.z) * r;
+			tv.u = v1.u + (v3.u - v1.u) * r;
+			tv.v = v1.v + (v3.v - v1.v) * r;
+
+			drawBottomTriangle(buffer, texture, v1, v2, tv);
+			drawTopTriangle(buffer, texture, v2, tv, v3);
+		}
+	}
+
+	var Cube = function () {
+		this.loc = [0, 0, 5];
+		this.rot = [0, 0, 0];
+		this.scale = 1;
+	};
+	Cube.prototype.points = [
+		V3.$(-1,-1,-1),
+		V3.$(1,-1,-1),
+		V3.$(1,1,-1),
+		V3.$(-1,1,-1),
+		V3.$(-1,-1,1),
+		V3.$(1,-1,1),
+		V3.$(1,1,1),
+		V3.$(-1,1,1)
+	];
+	Cube.prototype.faces = [
+		[[0, 0, 1], [1, 1, 1], [2, 1, 0]],
+		[[0, 0, 1], [2, 1, 0], [3, 0, 0]],
+		[[5, 1, 1], [4, 0, 1], [7, 0, 0]],
+		[[5, 1, 1], [7, 0, 0], [6, 1, 0]],
+		[[6, 0, 1], [2, 1, 1], [1, 1, 0]],
+		[[6, 0, 1], [1, 1, 0], [5, 0, 0]],
+		[[3, 1, 1], [7, 0, 1], [4, 0, 0]],
+		[[3, 1, 1], [4, 0, 0], [0, 1, 0]],
+		[[7, 0, 1], [3, 1, 1], [2, 1, 0]],
+		[[7, 0, 1], [2, 1, 0], [6, 0, 0]],
+		[[5, 1, 1], [1, 0, 1], [0, 0, 0]],
+		[[5, 1, 1], [0, 0, 0], [4, 1, 0]]
+	];
+	Cube.prototype.rotate = function (x, y, z) {
+		this.rot[0] = x*Math.PI/180 || this.rot[0];
+		this.rot[1] = y*Math.PI/180 || this.rot[1];
+		this.rot[2] = z*Math.PI/180 || this.rot[2];
+	};
+	Cube.prototype.scale = function (scale) {
+		this.scale = scale;
+	};
+	Cube.prototype.translate = function (x, y, z) {
+		this.loc[0] = x || this.loc[0];
+		this.loc[1] = y || this.loc[1];
+		this.loc[2] = z || this.loc[2];
+	};
+	Cube.prototype.render = function () {
+		var tmp, v, m;
+
+		c.clearRect(0, 0, canvas.width, canvas.height);
+		c.lineJoin = 'round';
+		c.lineWidth = 2;
+
+		var transformM = M4x4.makeScale1(this.scale);
+
+		M4x4.translate(this.loc, transformM, transformM);
+
+		M4x4.rotate(this.rot[0], [1, 0, 0], transformM, transformM);
+		M4x4.rotate(this.rot[1], [0, 1, 0], transformM, transformM);
+		M4x4.rotate(this.rot[2], [0, 0, 1], transformM, transformM);
+
+		M4x4.mul(M4x4.makeTranslate(this.loc), transformM, transformM);
+
+		var projected = this.points.map(function (p) {
+			p = M4x4.transformPoint(transformM, p);
+			return {
+				x: p[0],
+				y: p[1],
+				z: p[2],
+				u: 0,
+				v: 0
+			};
+		});
+
+		// poor man's z depth sorting
+		this.faces.forEach(function(face) {
+			var avgZ = (projected[face[0][0]].z + projected[face[1][0]].z + projected[face[2][0]].z) / 3;
+			face.push(avgZ);
+		});
+		this.faces.sort(function (a, b) { return b[3] - a[3]; });
+		this.faces.forEach(function (face) { face.pop(); });
+
+		projected.forEach(function (p) {
+			var depth = canvas.width / .5;
+			p.x = p.x * depth / p.z;
+			p.y = p.y * depth / p.z;
+
+			p.x += canvas.width / 2;
+			p.y += canvas.height / 2;
+		});
+
+		// draw stuff
+		var buffer = c.getImageData(0, 0, canvas.width, canvas.height);
+
+		this.faces.forEach(function (face, fi) {
+			//if (fi > 5) return;
+			var f1 = face[0];
+			var f2 = face[1];
+			var f3 = face[2];
+			var v1 = projected[f1[0]];
+			v1.u = f1[1];
+			v1.v = f1[2];
+			var v2 = projected[f2[0]];
+			v2.u = f2[1];
+			v2.v = f2[2];
+			var v3 = projected[f3[0]];
+			v3.u = f3[1];
+			v3.v = f3[2];
+			drawTriangle(buffer, texture.data, v1, v2, v3);
+		}, this);
+
+		c.putImageData(buffer, 0, 0);
+
+	};
+
+	var cube = new Cube();
+
+	var startTime;
+	var ticks;
+
+	function loop() {
+		stats.begin();
+		ticks = new Date().valueOf() - startTime;
+		cube.rotate(ticks / 16, -ticks / 16, 0);
+		cube.render();
+		requestAnimFrame(loop);
+		stats.end();
+	}
+
+	getImageData('images/horizontal-parallel-lines.jpg',
+		function (imageData) {
+			texture = imageData;
+			startTime = new Date().valueOf();
+			//requestAnimFrame(loop);
+			ticks = 700;
+			cube.rotate(ticks / 16, -ticks / 16, 0);
+			cube.render();
+		});
+
+
+</script>
+</body>
+</html>
