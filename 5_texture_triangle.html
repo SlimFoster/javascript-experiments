@@ -404,11 +404,11 @@
 		stats.end();
 	}
 
-	getImageData('images/horizontal-parallel-lines.jpg',
+	getImageData('images/parallel-lines.jpg',
 		function (imageData) {
 			texture = imageData;
 			startTime = new Date().valueOf();
-			//requestAnimFrame(loop);
+			requestAnimFrame(loop);
 			ticks = 700;
 			cube.rotate(ticks / 16, -ticks / 16, 0);
 			cube.render();
