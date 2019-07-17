@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html>
-<head lang="en">
-	<meta charset="UTF-8">
-	<title></title>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title></title>
 </head>
 <body>
 <script language="javascript" src="lib/mjs.js"></script>
@@ -17,27 +17,18 @@
 	stats.domElement.style.left = '10px';
 	stats.domElement.style.top = '10px';
 
-	document.body.appendChild( stats.domElement );
+	document.body.appendChild(stats.domElement);
 
 	var requestAnimFrame =
-		window.requestAnimationFrame       ||
+		window.requestAnimationFrame ||
 		window.webkitRequestAnimationFrame ||
-		window.mozRequestAnimationFrame    ||
+		window.mozRequestAnimationFrame ||
 		function (callback) {
 			window.setTimeout(callback, 1000 / 60);
 		};
 
-	function mulV(matrix, vector) {
-		return [
-				vector[0] * matrix[0],
-				vector[1] * matrix[5],
-				vector[2] * matrix[10]
-		];
-	}
-
-	var canvas = document.body.appendChild(document.createElement('canvas'))
-		,   c = canvas.getContext('2d')
-		;
+	var canvas = document.body.appendChild(document.createElement('canvas')),
+		c = canvas.getContext('2d');
 
 	canvas.width = 320;
 	canvas.height = 240;
@@ -183,7 +174,7 @@
 	function drawTriangle(buffer, color, x1, y1, x2, y2, x3, y3) {
 		var tx, ty, nx;
 
-		if ((x1 == x2 && x2 == x3) || (y1 == y2 && y2 == y3))
+		if ((x1 === x2 && x2 === x3) || (y1 === y2 && y2 === y3))
 			return;
 
 		if (y2 < y1) {
@@ -213,12 +204,12 @@
 			y2 = ty;
 		}
 
-		if (y1 == y2)
+		if (y1 === y2)
 			drawTopTriangle(buffer, color, x1, y1, x2, y2, x3, y3);
-		else if (y2 == y3)
+		else if (y2 === y3)
 			drawBottomTriangle(buffer, color, x1, y1, x2, y2, x3, y3);
 		else {
-			nx = x1 + ((y2 - y1)*(x3 - x1)/(y3 - y1));
+			nx = x1 + ((y2 - y1) * (x3 - x1) / (y3 - y1));
 			drawBottomTriangle(buffer, color, x1, y1, nx, y2, x2, y2);
 			drawTopTriangle(buffer, color, x2, y2, nx, y2, x3, y3);
 		}
@@ -229,7 +220,16 @@
 		this.rot = [0, 0, 0];
 		this.scale = 1;
 	};
-	Cube.prototype.points = [V3.$(-1,-1,-1),V3.$(1,-1,-1),V3.$(1,1,-1),V3.$(-1,1,-1),V3.$(-1,-1,1),V3.$(1,-1,1),V3.$(1,1,1),V3.$(-1,1,1)];
+	Cube.prototype.points = [
+		V3.$(-1, -1, -1),
+		V3.$(1, -1, -1),
+		V3.$(1, 1, -1),
+		V3.$(-1, 1, -1),
+		V3.$(-1, -1, 1),
+		V3.$(1, -1, 1),
+		V3.$(1, 1, 1),
+		V3.$(-1, 1, 1)
+	];
 	Cube.prototype.faces = [
 		[0, 1, 2, [255, 0, 0]],
 		[0, 2, 3, [255, 0, 0]],
@@ -246,9 +246,9 @@
 	];
 	Cube.prototype.rotate = function (x, y, z) {
 
-		this.rot[0] = x*Math.PI/180 || this.rot[0];
-		this.rot[1] = y*Math.PI/180 || this.rot[1];
-		this.rot[2] = z*Math.PI/180 || this.rot[2];
+		this.rot[0] = x * Math.PI / 180 || this.rot[0];
+		this.rot[1] = y * Math.PI / 180 || this.rot[1];
+		this.rot[2] = z * Math.PI / 180 || this.rot[2];
 	};
 	Cube.prototype.scale = function (scale) {
 		this.scale = scale;
@@ -280,12 +280,14 @@
 		});
 
 		// poor man's z depth sorting
-		this.faces.forEach(function(face) {
+		this.faces.forEach(function (face) {
 			var avgZ = projected[face[0]][2] + projected[face[1]][2] + projected[face[2]][2] / 3;
 			face.push(avgZ);
 		});
 
-		this.faces.sort(function (a, b) { return b[4] - a[4]; });
+		this.faces.sort(function (a, b) {
+			return b[4] - a[4];
+		});
 
 		projected.forEach(function (p) {
 			var depth = canvas.width / 1.5;
@@ -303,8 +305,8 @@
 		this.faces.forEach(function (face) {
 
 			var v1 = projected[face[0]];
-			var v2 =  projected[face[1]];
-			var v3 =  projected[face[2]];
+			var v2 = projected[face[1]];
+			var v3 = projected[face[2]];
 
 			drawTriangle(buffer, face[3], ~~v1[0], ~~v1[1], ~~v2[0], ~~v2[1], ~~v3[0], ~~v3[1]);
 

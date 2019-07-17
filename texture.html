@@ -1,16 +1,13 @@
 <!DOCTYPE html>
-<html>
-<head lang="en">
+<html lang="en">
+<head>
     <meta charset="UTF-8">
     <title></title>
 </head>
 <body>
 <script language="javascript">
-    var canvas = document.body.appendChild(document.createElement('canvas'))
-            , ctx = canvas.getContext('2d')
-            , reqFrame = window.requestAnimationFrame
-            , viewDist = 80
-            ;
+    var canvas = document.body.appendChild(document.createElement('canvas')),
+        ctx = canvas.getContext('2d');
 
     canvas.width = 320;
     canvas.height = 240;
@@ -18,7 +15,7 @@
 
     function getImageData(url, callback) {
         var img = new Image();
-        img.onload = function() {
+        img.onload = function () {
 
             var canvas = document.createElement('canvas');
             canvas.width = img.width;
@@ -174,9 +171,9 @@
     }
 
     function drawTriangle(ctx, buffer, texture, p1, p2, p3) {
-       var tp;
+        var tp;
 
-        if ((p1.x == p2.x && p2.x == p3.x) || (p1.y == p2.y && p2.y == p3.y))
+        if ((p1.x === p2.x && p2.x === p3.x) || (p1.y === p2.y && p2.y === p3.y))
             return;
 
         if (p2.y < p1.y) {
@@ -197,15 +194,15 @@
             p2 = tp;
         }
 
-        if (p1.y == p2.y)
+        if (p1.y === p2.y)
             drawTopTriangle(ctx, buffer, texture, p1, p2, p3);
-        else if (p2.y == p3.y)
-			drawBottomTriangle(ctx, buffer, texture, p1, p2, p3);
+        else if (p2.y === p3.y)
+            drawBottomTriangle(ctx, buffer, texture, p1, p2, p3);
         else {
             var nx = p1.x + (p2.y - p1.y) * (p3.x - p1.x) / (p3.y - p1.y);
             var nz = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2)) /
-                     Math.sqrt(Math.pow(p3.x - p1.x, 2) + Math.pow(p3.y - p1.y, 2)) *
-                     (p3.z - p1.z) + p1.z;
+                Math.sqrt(Math.pow(p3.x - p1.x, 2) + Math.pow(p3.y - p1.y, 2)) *
+                (p3.z - p1.z) + p1.z;
             drawBottomTriangle(ctx, buffer, texture, x1, y1, nx, y2, x2, y2);
             drawTopTriangle(ctx, buffer, texture, x2, y2, nx, y2, x3, y3);
         }
@@ -216,7 +213,7 @@
         var buffer = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
         var tris = [[0, 1, 2], [2, 3, 0]]; // Split in two triangles
-        for (var t=0; t<2; t++) {
+        for (var t = 0; t < 2; t++) {
             var pp = tris[t];
             drawTriangle(ctx, buffer, texture, pts[pp[0]], pts[pp[1]], pts[pp[2]]);
         }
@@ -225,13 +222,13 @@
     }
 
     var pts = [
-        {x:0,   y:20,  z: 10, u: 0, v: 0},
-        {x:100, y:0,   z: 0 , u: 1, v: 0},
-        {x:100, y:100, z: 0 , u: 1, v: 1},
-        {x:0,   y:80,  z: 10, u: 0, v: 1}
+        {x: 0, y: 20, z: 10, u: 0, v: 0},
+        {x: 100, y: 0, z: 0, u: 1, v: 0},
+        {x: 100, y: 100, z: 0, u: 1, v: 1},
+        {x: 0, y: 80, z: 10, u: 0, v: 1}
     ];
 
-    getImageData('images/horizontal-parallel-lines.jpg',
+    getImageData('images/parallel-lines.jpg',
         function (imageData) {
             textureMap(ctx, imageData, pts);
         });

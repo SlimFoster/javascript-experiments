@@ -1,103 +1,118 @@
 <!DOCTYPE html>
-<html>
-<head lang="en">
+<html lang="en">
+<head>
     <meta charset="UTF-8">
     <title></title>
 </head>
 <body>
 <script language="javascript">
 
-    var requestAnimFrame =
-            window.requestAnimationFrame       ||
-            window.webkitRequestAnimationFrame ||
-            window.mozRequestAnimationFrame    ||
-            function (callback) {
-                window.setTimeout(callback, 1000 / 60);
-            };
+	var requestAnimFrame =
+		window.requestAnimationFrame ||
+		window.webkitRequestAnimationFrame ||
+		window.mozRequestAnimationFrame ||
+		function (callback) {
+			window.setTimeout(callback, 1000 / 60);
+		};
 
-    var points = [[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]
-            , faces = [[0,1,2,3],[5,4,7,6],[6,2,1,5],[3,7,4,0],[7,3,2,6],[5,1,0,4]]
-            , canvas = document.body.appendChild(document.createElement('canvas'))
-            , c = canvas.getContext('2d')
-            , transformedPoints = []
-            ;
+	var points = [
+			[-1, -1, -1],
+			[1, -1, -1],
+			[1, 1, -1],
+			[-1, 1, -1],
+			[-1, -1, 1],
+			[1, -1, 1],
+			[1, 1, 1],
+			[-1, 1, 1]
+		],
+		faces = [
+			[0, 1, 2, 3],
+			[5, 4, 7, 6],
+			[6, 2, 1, 5],
+			[3, 7, 4, 0],
+			[7, 3, 2, 6],
+			[5, 1, 0, 4]
+		],
+		canvas = document.body.appendChild(document.createElement('canvas')),
+		c = canvas.getContext('2d'),
+		transformedPoints = [];
 
-    canvas.width = 320;
-    canvas.height = 240;
-    canvas.style.backgroundColor = 'black';
+	canvas.width = 320;
+	canvas.height = 240;
+	canvas.style.backgroundColor = 'black';
 
-    var startTime;
-    var ticks;
+	var startTime;
+	var ticks;
 
-    function transform() {
-        var rx = ticks / 16;
-        var ry = -ticks / 16;
-        var rz = 0;
+	function transform() {
+		var rx = ticks / 16;
+		var ry = -ticks / 16;
+		var rz = 0;
 
-        rx *= Math.PI / 180;
-        ry *= Math.PI / 180;
-        rz *= Math.PI / 180;
+		rx *= Math.PI / 180;
+		ry *= Math.PI / 180;
+		rz *= Math.PI / 180;
 
-        transformedPoints = [];
-        for (var i = 0; i < points.length; i++) {
-            var p = points[i], x = p[0], y = p[1], z = p[2];
+		transformedPoints = [];
+		for (var i = 0; i < points.length; i++) {
+			var p = points[i], x = p[0], y = p[1], z = p[2];
 
-            var nz = z * Math.cos(rx) - y * Math.sin(rx);
-            var ny = z * Math.sin(rx) + y * Math.cos(rx);
+			var nz = z * Math.cos(rx) - y * Math.sin(rx);
+			var ny = z * Math.sin(rx) + y * Math.cos(rx);
 
-            var nx = x * Math.cos(ry) - nz * Math.sin(ry);
-            z = x * Math.sin(ry) + nz * Math.cos(ry);
+			var nx = x * Math.cos(ry) - nz * Math.sin(ry);
+			z = x * Math.sin(ry) + nz * Math.cos(ry);
 
-            x = nx * Math.cos(rz) - ny * Math.sin(rz);
-            y = nx * Math.sin(rz) + ny * Math.cos(rz);
+			x = nx * Math.cos(rz) - ny * Math.sin(rz);
+			y = nx * Math.sin(rz) + ny * Math.cos(rz);
 
-            z += 5;
+			z += 5;
 
-            transformedPoints.push([x, y, z]);
-        }
-    }
+			transformedPoints.push([x, y, z]);
+		}
+	}
 
-    function draw() {
-        var i;
+	function draw() {
+		var i;
 
-        c.clearRect(0, 0, 320, 240);
-        c.strokeStyle = 'white';
+		c.clearRect(0, 0, 320, 240);
+		c.strokeStyle = 'white';
 
-        var projected = [];
-        for (i = 0; i < transformedPoints.length; i++) {
-            var p = transformedPoints[i], x = p[0], y = p[1], z = p[2];
+		var projected = [];
+		for (i = 0; i < transformedPoints.length; i++) {
+			var p = transformedPoints[i], x = p[0], y = p[1], z = p[2];
 
-            var depth = canvas.width / 1.5;
-            var xx = x * depth / z;
-            var yy = y * depth / z;
+			var depth = canvas.width / 1.5;
+			var xx = x * depth / z;
+			var yy = y * depth / z;
 
-            xx += canvas.width / 2;
-            yy += canvas.height / 2;
+			xx += canvas.width / 2;
+			yy += canvas.height / 2;
 
-            projected.push([xx, yy]);
-        }
+			projected.push([xx, yy]);
+		}
 
-        for (var j = 0; j < faces.length; j++) {
-            var f = faces[j];
-            i = 0;
-            c.beginPath();
-            c.moveTo(projected[f[i]][0], projected[f[i]][1]);
-            for (i = 1; i < f.length; i++)
-                c.lineTo(projected[f[i]][0], projected[f[i]][1]);
-            c.closePath();
-            c.stroke();
-        }
-    }
+		for (var j = 0; j < faces.length; j++) {
+			var f = faces[j];
+			i = 0;
+			c.beginPath();
+			c.moveTo(projected[f[i]][0], projected[f[i]][1]);
+			for (i = 1; i < f.length; i++)
+				c.lineTo(projected[f[i]][0], projected[f[i]][1]);
+			c.closePath();
+			c.stroke();
+		}
+	}
 
-    function loop() {
-        ticks = new Date().valueOf() - startTime;
-        transform();
-        draw();
-        requestAnimFrame(loop);
-    }
+	function loop() {
+		ticks = new Date().valueOf() - startTime;
+		transform();
+		draw();
+		requestAnimFrame(loop);
+	}
 
-    startTime = new Date().valueOf();
-    requestAnimFrame(loop);
+	startTime = new Date().valueOf();
+	requestAnimFrame(loop);
 
 </script>
 </body>

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
-<html>
-<head lang="en">
+<html lang="en">
+<head>
     <meta charset="UTF-8">
     <title></title>
 </head>
@@ -9,24 +9,15 @@
 <script language="javascript">
 
     var requestAnimFrame =
-            window.requestAnimationFrame       ||
-            window.webkitRequestAnimationFrame ||
-            window.mozRequestAnimationFrame    ||
-            function (callback) {
-                window.setTimeout(callback, 1000 / 60);
-            };
+        window.requestAnimationFrame ||
+        window.webkitRequestAnimationFrame ||
+        window.mozRequestAnimationFrame ||
+        function (callback) {
+            window.setTimeout(callback, 1000 / 60);
+        };
 
-    function mulV(matrix, vector) {
-        return [
-            vector[0] * matrix[0],
-            vector[1] * matrix[5],
-            vector[2] * matrix[10]
-        ];
-    }
-
-    var canvas = document.body.appendChild(document.createElement('canvas'))
-    ,   c = canvas.getContext('2d')
-    ;
+    var canvas = document.body.appendChild(document.createElement('canvas')),
+        c = canvas.getContext('2d');
 
     canvas.width = 320;
     canvas.height = 240;
@@ -37,13 +28,29 @@
         this.rot = [0, 0, 0];
         this.scale = 1;
     };
-    Cube.prototype.points = [V3.$(-1,-1,-1),V3.$(1,-1,-1),V3.$(1,1,-1),V3.$(-1,1,-1),V3.$(-1,-1,1),V3.$(1,-1,1),V3.$(1,1,1),V3.$(-1,1,1)];
-    Cube.prototype.faces = [[0,1,2,3],[5,4,7,6],[6,2,1,5],[3,7,4,0],[7,3,2,6],[5,1,0,4]];
+    Cube.prototype.points = [
+        V3.$(-1, -1, -1),
+        V3.$(1, -1, -1),
+        V3.$(1, 1, -1),
+        V3.$(-1, 1, -1),
+        V3.$(-1, -1, 1),
+        V3.$(1, -1, 1),
+        V3.$(1, 1, 1),
+        V3.$(-1, 1, 1)
+    ];
+    Cube.prototype.faces = [
+        [0, 1, 2, 3],
+        [5, 4, 7, 6],
+        [6, 2, 1, 5],
+        [3, 7, 4, 0],
+        [7, 3, 2, 6],
+        [5, 1, 0, 4]
+    ];
     Cube.prototype.rotate = function (x, y, z) {
 
-        this.rot[0] = x*Math.PI/180 || this.rot[0];
-        this.rot[1] = y*Math.PI/180 || this.rot[1];
-        this.rot[2] = z*Math.PI/180 || this.rot[2];
+        this.rot[0] = x * Math.PI / 180 || this.rot[0];
+        this.rot[1] = y * Math.PI / 180 || this.rot[1];
+        this.rot[2] = z * Math.PI / 180 || this.rot[2];
     };
     Cube.prototype.scale = function (scale) {
         this.scale = scale;
@@ -54,8 +61,6 @@
         this.loc[2] = z || this.loc[2];
     };
     Cube.prototype.render = function () {
-        var tmp, v, m;
-
         c.save();
         c.clearRect(0, 0, canvas.width, canvas.height);
         c.strokeStyle = 'white';
@@ -74,7 +79,7 @@
 
         var transformed = [];
 
-        this.points.forEach(function (point, i) {
+        this.points.forEach(function (point) {
             var p = M4x4.transformPoint(transformM, point);
 
             var depth = canvas.width / 1.5;
